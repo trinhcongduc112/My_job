@@ -4,37 +4,16 @@ import { useParams, Link } from "react-router-dom";
 import Textfield from "@atlaskit/textfield";
 import Button from "@atlaskit/button";
 import DropdownMenu, { DropdownItemGroup, DropdownItem } from "@atlaskit/dropdown-menu";
-import { v4 as uuid } from "uuid";
+import {
+  getTodos,
+  addTodo,
+  updateTodo,
+  deleteTodo,
+} from "../api/todoApi";
 
-const API_URL = process.env.REACT_APP_API_URL; // dùng cho backend
-const TODO_APP_STORAGE_KEY = "TODO_APP";
-
-// -------- Helpers --------
-function loadTodos() {
-  try {
-    const storaged = localStorage.getItem(TODO_APP_STORAGE_KEY);
-    if (storaged) {
-      const parsed = JSON.parse(storaged);
-      if (Array.isArray(parsed)) return parsed;
-    }
-  } catch (e) {
-    console.warn("Cannot parse TODO_APP:", e);
-  }
-  return [];
-}
-
-function saveTodos(list) {
-  try {
-    localStorage.setItem(TODO_APP_STORAGE_KEY, JSON.stringify(list));
-  } catch (e) {
-    console.warn("Cannot save TODO_APP:", e);
-  }
-}
-
-// -------- Component --------
 export default function CalendarPage() {
   const { date } = useParams(); // yyyy-mm-dd
-  const [todos, setTodos] = useState(loadTodos());
+  const [todos, setTodos] = useState([]);
   const [textInput, setTextInput] = useState("");
   const [editingId, setEditingId] = useState(null);
   const [draft, setDraft] = useState("");
@@ -45,6 +24,19 @@ export default function CalendarPage() {
   const isPast = date < todayStr;
   const isFuture = date > todayStr;
 
+  // 📌 Fetch todos khi load hoặc khi đổi date
+  useEffect(() => {
+    async function fetchData() {
+      try {
+        const data = await getTodos();
+        setTodos(data);
+      } catch (err) {
+        console.error("Lỗi tải todos:", err);
+      }
+    }
+    fetchData();
+  }, [date]);
+
   // lọc công việc theo ngày + tìm kiếm
   const filteredTodos = todos.filter(
     (t) =>
@@ -52,64 +44,49 @@ export default function CalendarPage() {
       t.name.toLowerCase().includes(search.toLowerCase())
   );
 
-  // thêm việc (ưu tiên backend, fallback localStorage)
-  async function addTodo() {
+  // thêm việc
+  async function addTodoHandler() {
     const name = textInput.trim();
     if (!name) return;
-    const newTask = {
-      id: uuid(),
-      name,
-      isCompleted: false,
-      createdAt: Date.now(),
-      dueDate: date,
-    };
 
     try {
-      // nếu có API backend
-      const res = await fetch(`${API_URL}/todos`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(newTask),
-      });
-      if (res.ok) {
-        const data = await res.json();
-        setTodos([data, ...todos]);
-      } else {
-        throw new Error("API lỗi");
-      }
+      const newTodo = await addTodo({ name, dueDate: date });
+      setTodos((prev) => [newTodo, ...prev]);
     } catch (err) {
-      console.warn("⚠️ Lỗi API, fallback localStorage", err);
-      const updated = [newTask, ...todos];
-      setTodos(updated);
-      saveTodos(updated);
+      console.error("Lỗi thêm todo:", err);
     }
     setTextInput("");
   }
 
   // tick hoàn thành
-  function toggleComplete(id) {
-    const updated = todos.map((t) =>
-      t.id === id ? { ...t, isCompleted: !t.isCompleted } : t
-    );
-    setTodos(updated);
-    saveTodos(updated);
+  async function toggleComplete(id, isCompleted) {
+    try {
+      const updated = await updateTodo(id, { isCompleted: !isCompleted });
+      setTodos((prev) => prev.map((t) => (t._id === id ? updated : t)));
+    } catch (err) {
+      console.error("Lỗi toggle:", err);
+    }
   }
 
   // xóa
-  function deleteTodo(id) {
-    const updated = todos.filter((t) => t.id !== id);
-    setTodos(updated);
-    saveTodos(updated);
+  async function deleteTodoHandler(id) {
+    try {
+      await deleteTodo(id);
+      setTodos((prev) => prev.filter((t) => t._id !== id));
+    } catch (err) {
+      console.error("Lỗi xóa:", err);
+    }
   }
 
   // sửa
-  function renameTodo(id, newName) {
-    const updated = todos.map((t) =>
-      t.id === id ? { ...t, name: newName } : t
-    );
-    setTodos(updated);
-    saveTodos(updated);
-    setEditingId(null);
+  async function renameTodoHandler(id, newName) {
+    try {
+      const updated = await updateTodo(id, { name: newName });
+      setTodos((prev) => prev.map((t) => (t._id === id ? updated : t)));
+      setEditingId(null);
+    } catch (err) {
+      console.error("Lỗi rename:", err);
+    }
   }
 
   return (
@@ -123,9 +100,9 @@ export default function CalendarPage() {
             placeholder="Nhập việc cần làm..."
             value={textInput}
             onChange={(e) => setTextInput(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && addTodo()}
+            onKeyDown={(e) => e.key === "Enter" && addTodoHandler()}
           />
-          <Button appearance="primary" onClick={addTodo}>
+          <Button appearance="primary" onClick={addTodoHandler}>
             Thêm
           </Button>
         </div>
@@ -151,13 +128,13 @@ export default function CalendarPage() {
       ) : (
         <ul>
           {filteredTodos.map((t) => (
-            <li key={t.id} style={{ marginBottom: 8 }}>
-              {editingId === t.id ? (
+            <li key={t._id} style={{ marginBottom: 8 }}>
+              {editingId === t._id ? (
                 <input
                   value={draft}
                   onChange={(e) => setDraft(e.target.value)}
                   onKeyDown={(e) => {
-                    if (e.key === "Enter") renameTodo(t.id, draft);
+                    if (e.key === "Enter") renameTodoHandler(t._id, draft);
                     if (e.key === "Escape") setEditingId(null);
                   }}
                   autoFocus
@@ -186,11 +163,17 @@ export default function CalendarPage() {
                 >
                   <DropdownItemGroup>
                     {isPast ? (
-                      <DropdownItem isDisabled>🔒 Không chỉnh sửa</DropdownItem>
+                      <DropdownItem isDisabled>
+                        🔒 Không chỉnh sửa
+                      </DropdownItem>
                     ) : (
                       <>
                         {!isFuture && (
-                          <DropdownItem onClick={() => toggleComplete(t.id)}>
+                          <DropdownItem
+                            onClick={() =>
+                              toggleComplete(t._id, t.isCompleted)
+                            }
+                          >
                             {t.isCompleted
                               ? "Bỏ hoàn thành"
                               : "Đánh dấu hoàn thành"}
@@ -198,13 +181,15 @@ export default function CalendarPage() {
                         )}
                         <DropdownItem
                           onClick={() => {
-                            setEditingId(t.id);
+                            setEditingId(t._id);
                             setDraft(t.name);
                           }}
                         >
                           ✏️ Sửa
                         </DropdownItem>
-                        <DropdownItem onClick={() => deleteTodo(t.id)}>
+                        <DropdownItem
+                          onClick={() => deleteTodoHandler(t._id)}
+                        >
                           🗑️ Xóa
                         </DropdownItem>
                       </>

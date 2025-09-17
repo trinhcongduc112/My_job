@@ -35,30 +35,34 @@ const Note = styled.div`
 
 export default function Todo({ todo, onCheckBtnClick, onDelete, onRename }) {
   const navigate = useNavigate();
+
+  // --- States ---
   const [isEditing, setIsEditing] = useState(false);
   const [draft, setDraft] = useState(todo.name);
 
   const [isNoteEditing, setIsNoteEditing] = useState(false);
   const [noteDraft, setNoteDraft] = useState(todo.note || "");
 
-  // ✅ thêm state cho thời gian
   const [isTimeEditing, setIsTimeEditing] = useState(false);
   const [startDraft, setStartDraft] = useState(todo.startTime || "");
   const [endDraft, setEndDraft] = useState(todo.endTime || "");
 
+  // --- Helpers ---
+  const todoId = todo._id || todo.id;
+
   function saveName() {
-    onRename(todo.id, draft, todo.note, todo.startTime, todo.endTime);
+    if (!draft.trim()) return;
+    onRename(todoId, draft, todo.note, todo.startTime, todo.endTime);
     setIsEditing(false);
   }
 
   function saveNote() {
-    onRename(todo.id, todo.name, noteDraft, todo.startTime, todo.endTime);
+    onRename(todoId, todo.name, noteDraft, todo.startTime, todo.endTime);
     setIsNoteEditing(false);
   }
 
-  // ✅ lưu thời gian
   function saveTime() {
-    onRename(todo.id, todo.name, todo.note, startDraft, endDraft);
+    onRename(todoId, todo.name, todo.note, startDraft, endDraft);
     setIsTimeEditing(false);
   }
 
@@ -69,10 +73,11 @@ export default function Todo({ todo, onCheckBtnClick, onDelete, onRename }) {
           <Button
             appearance="subtle"
             spacing="compact"
-            onClick={() => onCheckBtnClick(todo.id)}
+            onClick={() => onCheckBtnClick(todoId)}
           >
             <CheckIcon label="" size="small" />
           </Button>
+
           {isEditing ? (
             <Textfield
               value={draft}
@@ -93,7 +98,7 @@ export default function Todo({ todo, onCheckBtnClick, onDelete, onRename }) {
           )}
         </Name>
 
-        {/* ghi chú */}
+        {/* Ghi chú */}
         {!isNoteEditing && todo.note && <Note>📝 {todo.note}</Note>}
         {isNoteEditing && (
           <div style={{ marginTop: 8 }}>
@@ -111,7 +116,7 @@ export default function Todo({ todo, onCheckBtnClick, onDelete, onRename }) {
           </div>
         )}
 
-        {/* ⏰ thời gian */}
+        {/* Thời gian */}
         {!isTimeEditing && (todo.startTime || todo.endTime) && (
           <Note>⏰ {todo.startTime} - {todo.endTime}</Note>
         )}
@@ -137,7 +142,7 @@ export default function Todo({ todo, onCheckBtnClick, onDelete, onRename }) {
         )}
       </div>
 
-      {/* menu */}
+      {/* Menu hành động */}
       <DropdownMenu
         trigger={({ triggerRef, ...props }) => (
           <Button {...props} ref={triggerRef} appearance="subtle" iconBefore={<MoreIcon />} />
@@ -145,10 +150,10 @@ export default function Todo({ todo, onCheckBtnClick, onDelete, onRename }) {
       >
         <DropdownItemGroup>
           <DropdownItem onClick={() => setIsEditing(true)}>✏️ Sửa tên</DropdownItem>
-          <DropdownItem onClick={() => onDelete(todo.id)}>🗑️ Xóa</DropdownItem>
+          <DropdownItem onClick={() => onDelete(todoId)}>🗑️ Xóa</DropdownItem>
           <DropdownItem onClick={() => setIsNoteEditing(true)}>📝 Ghi chú</DropdownItem>
           <DropdownItem onClick={() => setIsTimeEditing(true)}>⏰ Thời gian</DropdownItem>
-          <DropdownItem onClick={() => navigate(`/detail/${todo.id}`)}>📄 Chi tiết</DropdownItem>
+          <DropdownItem onClick={() => navigate(`/detail/${todoId}`)}>📄 Chi tiết</DropdownItem>
         </DropdownItemGroup>
       </DropdownMenu>
     </Row>
