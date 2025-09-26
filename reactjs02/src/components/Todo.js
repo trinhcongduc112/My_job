@@ -34,6 +34,7 @@ const Note = styled.div`
 `;
 
 export default function Todo({ todo, onCheckBtnClick, onDelete, onRename }) {
+  console.log("Dữ liệu thực tế của todo:", todo);
   const navigate = useNavigate();
 
   // --- States ---

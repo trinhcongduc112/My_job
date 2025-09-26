@@ -203,7 +203,7 @@ export default function CalendarPage() {
       )}
 
       {/* quay lại danh sách chính */}
-      <Link to="/DS_ViecCanLam">⬅️ Quay lại danh sách</Link>
+      <Link to="/">⬅️ Quay lại danh sách</Link>
     </div>
   );
 }

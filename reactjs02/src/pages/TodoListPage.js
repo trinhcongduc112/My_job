@@ -10,6 +10,7 @@ import "react-calendar/dist/Calendar.css";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
 import { getTodos, addTodo, updateTodo, deleteTodo } from "../api/todoApi";
 
+
 // ================== STYLE ==================
 const GlobalStyle = createGlobalStyle`
   :root {
@@ -47,6 +48,7 @@ export default function TodoListPage() {
   const [calendarDate, setCalendarDate] = useState(new Date());
   const [showPopup, setShowPopup] = useState(true);
   const navigate = useNavigate();
+  
 
   const formatted = calendarDate.toISOString().split("T")[0];
 
@@ -109,6 +111,13 @@ export default function TodoListPage() {
     }
   }
 
+   function handleLogout() {
+    localStorage.removeItem("token");
+    localStorage.removeItem("role");
+    alert("Đã đăng xuất");
+    navigate("/login");
+  }
+
   // ---------------- EFFECT ----------------
   useEffect(() => {
     fetchTodos();
@@ -124,6 +133,8 @@ export default function TodoListPage() {
         <span style={{ color: "var(--muted)", fontSize: 14 }}>
           {todayTodos.length} việc
         </span>
+
+        <Button onClick={handleLogout}>Đăng xuất</Button>
       </Header>
     );
   }

@@ -1,109 +1,73 @@
 import express from "express";
 import Todo from "../models/Todo.js";
-import auth from "../middleware/auth.js";
+import { verifyToken } from "../middlewares/authMiddleware.js";
 
 const router = express.Router();
 
-// Routes không cần auth (để test frontend)
-router.get("/", async (req, res) => {
+// Lấy danh sách todos
+router.get("/", verifyToken, async (req, res) => {
   try {
-    const todos = await Todo.find();
+    // Sắp xếp công việc mới nhất lên đầu
+    const todos = await Todo.find().sort({ createdAt: -1 }); 
     res.json(todos);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
+  } catch (err) {
+    res.status(500).json({ error: "Server error" });
   }
 });
 
-router.post("/", async (req, res) => {
+// ✅ BỔ SUNG: Lấy một todo theo ID (dùng cho trang chi tiết)
+router.get("/:id", verifyToken, async (req, res) => {
   try {
-    const { name, dueDate, note, startTime, endTime } = req.body;
-    const newTodo = new Todo({ 
-      name, 
-      dueDate, 
-      note, 
-      startTime, 
-      endTime 
-    });
-    await newTodo.save();
-    res.json(newTodo);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
-
-router.put("/:id", async (req, res) => {
-  try {
-    const todo = await Todo.findByIdAndUpdate(req.params.id, req.body, { new: true });
+    const todo = await Todo.findById(req.params.id);
     if (!todo) {
-      return res.status(404).json({ error: "Todo not found" });
+      return res.status(404).json({ error: "Không tìm thấy công việc" });
     }
     res.json(todo);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
+  } catch (err) {
+    res.status(500).json({ error: "Server error" });
   }
 });
 
-router.delete("/:id", async (req, res) => {
+// Thêm todo
+router.post("/", verifyToken, async (req, res) => {
   try {
-    const todo = await Todo.findByIdAndDelete(req.params.id);
-    if (!todo) {
-      return res.status(404).json({ error: "Todo not found" });
-    }
-    res.json({ msg: "Todo deleted" });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
-
-// Routes có auth (cho production)
-router.get("/auth", auth, async (req, res) => {
-  try {
-    const todos = await Todo.find({ user: req.user.id });
-    res.json(todos);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
-
-router.post("/auth", auth, async (req, res) => {
-  try {
+    // Chỉ lấy các trường cần thiết để bảo mật hơn
     const { name, dueDate, note, startTime, endTime } = req.body;
-    const newTodo = new Todo({ 
-      user: req.user.id, 
-      name, 
-      dueDate, 
-      note, 
-      startTime, 
-      endTime 
-    });
-    await newTodo.save();
-    res.json(newTodo);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
+    const todo = await Todo.create({ name, dueDate, note, startTime, endTime });
+    res.status(201).json(todo); // Dùng status 201 cho việc tạo mới
+  } catch (err) {
+    res.status(400).json({ error: "Dữ liệu không hợp lệ" });
   }
 });
 
-router.put("/auth/:id", auth, async (req, res) => {
+// ✅ BỔ SUNG: Sửa một todo theo ID
+router.put("/:id", verifyToken, async (req, res) => {
   try {
-    const todo = await Todo.findByIdAndUpdate(req.params.id, req.body, { new: true });
-    if (!todo) {
-      return res.status(404).json({ error: "Todo not found" });
+    const { name, isCompleted, note, startTime, endTime } = req.body;
+    const updatedTodo = await Todo.findByIdAndUpdate(
+      req.params.id,
+      { name, isCompleted, note, startTime, endTime },
+      { new: true } // Trả về document đã được cập nhật
+    );
+    if (!updatedTodo) {
+      return res.status(404).json({ error: "Không tìm thấy công việc" });
     }
-    res.json(todo);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
+    res.json(updatedTodo);
+  } catch (err) {
+    res.status(400).json({ error: "Dữ liệu cập nhật không hợp lệ" });
   }
 });
 
-router.delete("/auth/:id", auth, async (req, res) => {
+// ✅ BỔ SUNG: Xóa một todo theo ID
+router.delete("/:id", verifyToken, async (req, res) => {
   try {
-    const todo = await Todo.findByIdAndDelete(req.params.id);
-    if (!todo) {
-      return res.status(404).json({ error: "Todo not found" });
+    const deletedTodo = await Todo.findByIdAndDelete(req.params.id);
+    if (!deletedTodo) {
+      return res.status(404).json({ error: "Không tìm thấy công việc" });
     }
-    res.json({ msg: "Todo deleted" });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
+    res.status(204).send(); // Gửi status 204 (No Content) khi xóa thành công
+  } catch (err) {
+    res.status(500).json({ error: "Server error" });
   }
 });
 

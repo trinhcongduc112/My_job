@@ -1,9 +1,7 @@
-// pages/DetailPage.js
 import { useParams, Link } from "react-router-dom";
 import styled from "styled-components";
 import React, { useEffect, useState } from "react";
-
-const API_URL = process.env.REACT_APP_API_URL; // từ file .env
+import { getTodoById } from "../api/todoApi"; // 👈 Import hàm gọi API
 
 const Page = styled.div`
   max-width: 720px;
@@ -16,23 +14,15 @@ export default function DetailPage() {
   const [todo, setTodo] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  // ✅ Lấy dữ liệu từ backend nếu có API
   useEffect(() => {
     async function fetchTodo() {
       try {
-        const res = await fetch(`${API_URL}/todos/${id}`);
-        if (!res.ok) {
-          throw new Error("Không tìm thấy công việc trên server");
-        }
-        const data = await res.json();
+        // Sử dụng hàm gọi API đã được quản lý tập trung
+        const data = await getTodoById(id);
         setTodo(data);
       } catch (err) {
-        console.warn("❌ API lỗi, fallback sang localStorage:", err);
-
-        // fallback localStorage nếu server chưa có
-        const todoList = JSON.parse(localStorage.getItem("TODO_APP") || "[]");
-        const localTodo = todoList.find((t) => t.id === id);
-        setTodo(localTodo || null);
+        console.error("Lỗi khi tải chi tiết công việc:", err);
+        setTodo(null); // Set là null nếu có lỗi từ server
       } finally {
         setLoading(false);
       }
